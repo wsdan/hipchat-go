@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/go-querystring/query"
+	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -19,6 +20,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/urlfetch"
 )
 
 const (
@@ -29,7 +32,7 @@ const (
 type Client struct {
 	authToken string
 	BaseURL   *url.URL
-	client    *http.Client
+	ctx       context.Context
 	// Room gives access to the /room part of the API.
 	Room *RoomService
 	// User gives access to the /user part of the API.
@@ -76,7 +79,7 @@ var AuthTestResponse = map[string]interface{}{}
 
 // NewClient returns a new HipChat API client. You must provide a valid
 // AuthToken retrieved from your HipChat account.
-func NewClient(authToken string) *Client {
+func NewClient(authToken string, originalReq *http.Request) *Client {
 	baseURL, err := url.Parse(defaultBaseURL)
 	if err != nil {
 		panic(err)
@@ -85,7 +88,7 @@ func NewClient(authToken string) *Client {
 	c := &Client{
 		authToken: authToken,
 		BaseURL:   baseURL,
-		client:    http.DefaultClient,
+		ctx:       appengine.NewContext(originalReq),
 	}
 	c.Room = &RoomService{client: c}
 	c.User = &UserService{client: c}
@@ -207,7 +210,8 @@ func (c *Client) NewFileUploadRequest(method, urlStr string, v interface{}) (*ht
 // Do can be used to perform the request created with NewRequest, as the latter
 // it should be used only for API requests not implemented in this library.
 func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
-	resp, err := c.client.Do(req)
+
+	resp, err := urlfetch.Client(c.ctx).Do(req)
 	if err != nil {
 		return nil, err
 	}

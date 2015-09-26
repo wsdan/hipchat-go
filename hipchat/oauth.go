@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"google.golang.org/appengine/urlfetch"
 )
 
 // ClientCredentials represents the OAuth2 client ID and secret for an integration
@@ -26,8 +27,8 @@ type OAuthAccessToken struct {
 }
 
 // CreateClient creates a new client from this OAuth token
-func (t *OAuthAccessToken) CreateClient() *Client {
-	return NewClient(t.AccessToken)
+func (t *OAuthAccessToken) CreateClient(req *http.Request) *Client {
+	return NewClient(t.AccessToken, req)
 }
 
 // GenerateToken returns back an access token for a given integration's client ID and client secret
@@ -53,8 +54,7 @@ func (c *Client) GenerateToken(credentials ClientCredentials, scopes []string) (
 	req.SetBasicAuth(credentials.ClientID, credentials.ClientSecret)
 	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := urlfetch.Client(c.ctx).Do(req)
 
 	if err != nil {
 		return nil, resp, err
